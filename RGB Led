@@ -1,0 +1,109 @@
+//Header files
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
+#include <ESP8266WiFi.h>
+
+//Wifi Credentials
+#define WLAN_SSID       "Username"   
+#define WLAN_PASS       "Password"
+
+//Global Variables
+String Led,val;
+int r,b,g;
+
+//Adafruit.io credentials
+#define AIO_SERVER      "io.adafruit.com"
+#define AIO_SERVERPORT  1883
+#define AIO_USERNAME  "Username"
+#define AIO_KEY  "Your AIO KEY"
+
+WiFiClient client;
+
+
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);  //Connect to adafruit server
+Adafruit_MQTT_Subscribe Light = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/Light");  //Subscribe to feed
+
+void Colour(int r, int g, int b)      //Function to change color of RGB led
+{
+  analogWrite(D4,r);
+  analogWrite(D5,g);
+  analogWrite(D6,b);
+}
+
+void setup()      //Make required pins as Output, GND is used as Ground
+{
+    pinMode(D4,OUTPUT);
+    pinMode(D5,OUTPUT);
+    pinMode(D6,OUTPUT);
+    Serial.begin(115200);
+    
+    WiFi.disconnect();      //Disconnect from any previous connection
+    delay(3000);  
+    Serial.println("START");
+
+    //Connect to WiFi
+    WiFi.begin(WLAN_SSID, WLAN_PASS);     
+    while (!(WiFi.status() == WL_CONNECTED))
+    {
+      delay(300);
+      Serial.print("..");
+    }
+    Serial.println("Connected");
+    Serial.println("Your IP is");
+    Serial.println((WiFi.localIP().toString()));
+
+    //Connect to server and subscribe
+   MQTT_connect();
+   mqtt.subscribe(&Light);
+}
+
+void loop() 
+{
+  if(mqtt.connected()==0)     //Check if connected 
+  {
+    MQTT_connect();   //Reconnect if not
+  }
+  
+  Adafruit_MQTT_Subscribe *subscription_name;
+  while (subscription_name = mqtt.readSubscription(5000))
+  {
+    if (subscription_name == &Light)  //If subscribed
+    {
+      Led=((char *)Light.lastread);     //Read last value
+      Serial.println("Light:    ");
+      Serial.println(Led);
+      r=16*cal(Led[1])+cal(Led[2]);     //Calculate R,G,B components in int
+      g=16*cal(Led[3])+cal(Led[4]);
+      b=16*cal(Led[5])+cal(Led[6]);
+      Colour(r,g,b);                     //Write on LED
+    }
+  }
+}
+
+void MQTT_connect()       //Function to connect to adafruit.io server
+{
+    if (mqtt.connected())
+    {
+      return;
+    }
+int8_t ret;
+    Serial.println("Coneecting to MQTT");
+     uint8_t retries = 3;
+  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
+       Serial.println(mqtt.connectErrorString(ret));
+       Serial.println("Retrying MQTT connection in 5 seconds...");
+       mqtt.disconnect();
+       delay(5000);  // wait 5 seconds
+       retries--;
+       if (retries == 0) {
+         // basically die and wait for WDT to reset me
+         while (1);
+       }
+  }
+  Serial.println("MQTT Connected!");    
+}
+
+int cal(char c)
+{
+  return c-'0';       //Calculate value of input
+}
