@@ -8,4 +8,6 @@ Components Required:
 
 You will require an account of adafruit.io to use this project. Make a feed named 'Light' and on dashboard create a colour picker to update the colour of this feed which we will in turn use to change colour of our LED.
 
+We will read hex value of colour from feed (in string format) and convert it to int before writing. It can be convertedd into hex as well for each colour.
+
 This can be furthur extended to make mood lights whose colour can be controlled remotely.
